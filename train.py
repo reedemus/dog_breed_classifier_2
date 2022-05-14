@@ -3,8 +3,9 @@ import json
 import os
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.optim as optim
-import torch.utils.data import DataLoader
+from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 # the following import is required for training to be robust to truncated images
@@ -14,39 +15,39 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 # imports the model in model.py by name
 from model import DogBreedClassifier
 
-## NEEDS WORK
-def model_fn(model_dir, use_cuda):
-    '''Load the PyTorch model'''
+def model_fn(model_dir):
+    '''
+    Loads the PyTorch model from the `model_dir` directory.
+
+    :param: model_dir = SageMaker's model directory
+    Reference:
+        https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/using_pytorch.html?highlight=model_fn#load-a-model
+    '''
     print("Loading model...")
-
-    # First, load the parameters used to create the model.
-    model_info = {}
-    model_info_path = os.path.join(model_dir, 'model_info.pt')
-    with open(model_info_path, 'rb') as f:
-        model_info = torch.load(f)
-
-    print("model_info: {}".format(model_info))
-
-    # Determine the device and construct the model.
+    # Determine the device and construct the model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = DogBreedClassifier()
 
-    # Load the stored model parameters.
+    # Load the stored model parameters
     model_path = os.path.join(model_dir, 'model.pth')
     with open(model_path, 'rb') as f:
         model.load_state_dict(torch.load(f))
 
     # set to eval mode, could use no_grad
-    if use_cuda:
-        model = model.cuda()
-    
-    model.eval()
-
-    print("...Done.")
-    return model
+    return model.to(device).eval()
 
 
-def get_train_data_loader(batch_size=64, training_dir='train', validation_dir='valid', testing_dir='test'):
+# model saving function
+# https://sagemaker.readthedocs.io/en/stable/frameworks/pytorch/using_pytorch.html?highlight=model_fn#save-the-model
+def save_model(model, model_dir):
+    print("Saving the model...")
+    model_path = os.path.join(model_dir, 'model.pth')
+    with open(model_path, 'wb') as f:
+        # save state dictionary
+        torch.save(model.state_dict(), f)
+
+
+def _get_data_loader(batch_size=32, training_dir='train', validation_dir='valid', testing_dir='test'):
     '''
     Create three separate data loaders for the training, validation, and test datasets
     
@@ -98,22 +99,21 @@ def get_train_data_loader(batch_size=64, training_dir='train', validation_dir='v
     valid_loader = DataLoader(valid_dataset, batch_size, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size, shuffle=False)
 
-    loaders_transfer = { 'train':train_loader, 'valid':valid_loader, 'test':test_loader }
-    return loaders_transfer
+    loaders_dict = { 'train':train_loader, 'valid':valid_loader, 'test':test_loader }
+    return loaders_dict
 
 
-def train(model, loaders, n_epochs, optimizer, criterion, use_cuda, save_path):
+def train(model, loaders, n_epochs, optimizer, criterion, use_cuda):
     """
-    This is the training method that is called by the PyTorch training script. The parameters
-    passed are as follows:
+    This is the training method that is called by the PyTorch training script. After
+    training, the model with the best validation accuracy is saved.
+    The parameters passed are as follows:
     model        - The PyTorch model that we wish to train.
-    train_loader - The PyTorch DataLoader that should be used during training.
+    loaders      - The PyTorch DataLoader that should be used during training.
     n_epochs     - The total number of epochs to train for.
     criterion    - The loss function used for training. 
     optimizer    - The optimizer to use during training.
     use_cuda     - uses gpu(True) or cpu(False).
-    save_path    - 
-    returns      - trained model
     """
     # initialize tracker for minimum validation loss
     valid_loss_min = np.Inf 
@@ -169,12 +169,8 @@ def train(model, loaders, n_epochs, optimizer, criterion, use_cuda, save_path):
 
             # save the model if validation loss has decreased
             if valid_loss < valid_loss_min:
-                print('Saving Model...')
                 valid_loss_min = valid_loss
-                torch.save(model.state_dict(),save_path)
-    
-    # return trained model
-    return model
+                save_model(model, args.model_dir)
 
 
 if __name__ == '__main__':
@@ -183,20 +179,21 @@ if __name__ == '__main__':
     
     # Here we set up an argument parser to easily access the parameters
     parser = argparse.ArgumentParser()
+        
+    # Training Parameters, given
+    parser.add_argument('--batch-size', type=int, default=32, metavar='N',
+                        help='input batch size for training (default: 32)')
+    parser.add_argument('--epochs', type=int, default=10, metavar='N',
+                        help='number of epochs to train (default: 10)')
+    parser.add_argument("--lr", type=float, default=0.01, metavar="LR",
+                        help="learning rate (default: 0.01)")    
     
     # SageMaker parameters, like the directories for training data and saving models; set automatically
-    # Do not need to change
     parser.add_argument('--output-data-dir', type=str, default=os.environ['SM_OUTPUT_DATA_DIR'])
     parser.add_argument('--model-dir', type=str, default=os.environ['SM_MODEL_DIR'])
     parser.add_argument('--train-dir', type=str, default=os.environ['SM_CHANNEL_TRAIN'])
     parser.add_argument('--valid-dir', type=str, default=os.environ['SM_CHANNEL_VALID'])
     parser.add_argument('--test-dir', type=str, default=os.environ['SM_CHANNEL_TEST'])
-    
-    # Training Parameters, given
-    parser.add_argument('--batch-size', type=int, default=10, metavar='N',
-                        help='input batch size for training (default: 10)')
-    parser.add_argument('--epochs', type=int, default=10, metavar='N',
-                        help='number of epochs to train (default: 10)')
     
     # args holds all passed-in arguments
     args = parser.parse_args()
@@ -207,18 +204,17 @@ if __name__ == '__main__':
     else:
         print("Using CPU.")
     
+    # Gets the train, validation and test data loaders
+    data_loaders = _get_data_loader(args.batch_size, args.train_dir, args.valid_dir, args.test_dir)
+    
     # Build the model
-    model = model_fn(use_cuda)
-    
-    # Load the training data
-    train_loader = get_train_data_loader(args.batch_size, args.train_dir, args.valid_dir, args.test_dir)
-    
+    model = DogBreedClassifier()
+    if use_cuda:
+        model.cuda()
+
     # Define an optimizer and loss function for training
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam( model_transfer.parameters(), lr=0.001 )
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
     
     # Trains and save the model
-    model = train(model, train_loader, 64, optimizer, criterion, use_cuda, 'model_transfer.pt')
-    
-    # load the model that got the best validation accuracy
-    model.load_state_dict(torch.load('model_transfer.pt'))
+    train(model, data_loaders, args.epochs, optimizer, criterion, use_cuda)
