@@ -7,7 +7,7 @@ import torch.nn as nn
 # This last FC layer is replaced with a new one with random weights and only this layer is trained.
 # https://pytorch.org/tutorials/beginner/finetuning_torchvision_models_tutorial.html#initialize-and-reshape-the-networks
 
-class DogBreedClassifier(models):
+class DogBreedClassifier():
     '''
     Pretrained Resnet model with the output features in the last layer set to 133 nodes, which is the number of dog breed classes
     '''
