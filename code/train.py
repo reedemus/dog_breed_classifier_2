@@ -26,7 +26,7 @@ def model_fn(model_dir):
     print("Loading model...")
     # Determine the device and construct the model
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = DogBreedClassifier()
+    model = DogBreedClassifier().get_model()
 
     # Load the stored model parameters
     model_path = os.path.join(model_dir, 'model.pth')
@@ -208,7 +208,7 @@ if __name__ == '__main__':
     data_loaders = _get_data_loader(args.batch_size, args.train_dir, args.valid_dir, args.test_dir)
     
     # Build the model
-    model = DogBreedClassifier()
+    model = DogBreedClassifier().get_model()
     if use_cuda:
         model.cuda()
 
