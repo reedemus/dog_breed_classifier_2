@@ -1,8 +1,13 @@
-import torchvision.transforms as transforms
+
+import base64
 import torch
 import os
+import json
+import torchvision.transforms as transforms
 import numpy as np
+from base64 import decode
 from PIL import Image
+from io import BytesIO
 
 # import model from model.py, by name
 from model import DogBreedClassifier
@@ -42,7 +47,7 @@ def input_fn(serialized_input_data, content_type):
 
     Args:
         serialized_input_data (any): raw input data received
-        content_type (str): data type of serialized input data e.g. npy, x-image, json, etc.
+        content_type (str): data type of serialized input data
 
     Returns:
         input data converted to Torch.tensor, which is the first argument of predict_fn.
@@ -50,7 +55,8 @@ def input_fn(serialized_input_data, content_type):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('Deserializing the input data.')
     if content_type == 'application/x-image':
-        image = Image.open(serialized_input_data).convert(mode='RGB')
+        image_bytes = BytesIO(base64.b64decode(serialized_input_data))
+        image = Image.open(image_bytes).convert(mode='RGB')
         IMAGE_SIZE = 224
         # preprocess the image using transform
         prediction_transform = transforms.Compose([
@@ -65,7 +71,7 @@ def input_fn(serialized_input_data, content_type):
     raise Exception('Requested unsupported ContentType: ' + content_type)
 
 
-# Provided predict function TODO
+# Provided predict function
 def predict_fn(input_data, model):
     '''Make prediction of the dog breed given input data
 
