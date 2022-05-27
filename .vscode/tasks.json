@@ -1,0 +1,20 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Export JNotebook as Web PDF",
+            "type": "shell",
+            "command": "python -m jupyter nbconvert ${file} --to webpdf --output {file}.pdf",
+            "group": "build"
+        },
+        {
+            "label": "Diff with last commit",
+            "type": "shell",
+            "command": "nbdiff-web ${file}",
+            "group": "build",
+            "problemMatcher": []
+        }
+    ]
+}
