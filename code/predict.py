@@ -54,10 +54,10 @@ def input_fn(serialized_input_data, content_type):
     '''
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('Deserializing the input data.')
-    if content_type == 'application/x-image':
+    if content_type == 'image/jpeg':
         #image_bytes = BytesIO(base64.b64decode(serialized_input_data))
-        image_bytes = base64.b4encode(serialized_input_data).decode("utf-8")
-        image = Image.open(image_bytes).convert(mode='RGB')
+        #image_bytes = base64.b4encode(serialized_input_data).decode("utf-8")
+        image = Image.open(serialized_input_data).convert(mode='RGB')
         IMAGE_SIZE = 224
         # preprocess the image using transform
         prediction_transform = transforms.Compose([
