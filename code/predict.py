@@ -55,8 +55,9 @@ def input_fn(serialized_input_data, content_type):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('Deserializing the input data.')
     if content_type == 'image/jpeg':
-        image_data = io.BytesIO()           # a binary stream using an in-memory bytes buffer
-        image_data.write(b64decode(serialized_input_data))
+        # create a binary stream using an in-memory bytes buffer and return the BytesIO object
+        image_data = io.BytesIO(b64decode(serialized_input_data))
+
         image = Image.open(image_data).convert(mode='RGB')
         IMAGE_SIZE = 224
         # preprocess the image using transform
