@@ -3,11 +3,11 @@ import base64
 import torch
 import os
 import json
+import io
 import torchvision.transforms as transforms
 import numpy as np
 from base64 import b64decode
 from PIL import Image
-from io import BytesIO
 
 # import model from model.py, by name
 from model import DogBreedClassifier
@@ -55,9 +55,9 @@ def input_fn(serialized_input_data, content_type):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print('Deserializing the input data.')
     if content_type == 'image/jpeg':
-        with open('input.jpg', "wb") as f:
-            f.write(b64decode(serialized_input_data))
-        image = Image.open('input.jpg').convert(mode='RGB')
+        image_data = io.BytesIO()           # a binary stream using an in-memory bytes buffer
+        image_data.write(b64decode(serialized_input_data))
+        image = Image.open(image_data).convert(mode='RGB')
         IMAGE_SIZE = 224
         # preprocess the image using transform
         prediction_transform = transforms.Compose([
@@ -68,6 +68,7 @@ def input_fn(serialized_input_data, content_type):
                                                                 std=[0.229, 0.224, 0.225] )
                                             ])
         image_tensor = prediction_transform(image).unsqueeze(0)
+        image_data.close()                 # free the memory buffer
         return image_tensor.to(device)
     raise Exception('Requested unsupported ContentType: ' + content_type)
 
