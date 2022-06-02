@@ -209,7 +209,7 @@ if __name__ == '__main__':
     
     # Build the model
     dog_model = DogBreedClassifier()
-    model = dog_model.training_setup(dog_model, pretrained=True)
+    model = DogBreedClassifier.training_setup(dog_model, pretrained=True)
     if use_cuda:
         model.cuda()
 

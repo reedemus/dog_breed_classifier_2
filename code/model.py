@@ -16,7 +16,8 @@ class DogBreedClassifier(ResNet):
         # reference: https://github.com/pytorch/vision/blob/main/torchvision/models/resnet.py#L788
         super().__init__(Bottleneck, [3, 8, 36, 3])
 
-    def training_setup(self, model, pretrained=False):
+    @classmethod
+    def training_setup(cls, model, pretrained=False):
         if pretrained:
             state_dict = Hub.load_state_dict_from_url('https://download.pytorch.org/models/resnet152-b121ed2d.pth')
             model.load_state_dict(state_dict)
