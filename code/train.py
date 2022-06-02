@@ -208,8 +208,8 @@ if __name__ == '__main__':
     data_loaders = _get_data_loader(args.batch_size, args.train_dir, args.valid_dir, args.test_dir)
     
     # Build the model
-    model = DogBreedClassifier()
-    model = model.training_setup(pretrained=True)
+    dog_model = DogBreedClassifier()
+    model = dog_model.training_setup(dog_model, pretrained=True)
     if use_cuda:
         model.cuda()
 
